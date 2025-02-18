@@ -27,7 +27,6 @@ Welcome to **Alien Shooter Game** – an HTML5 canvas-based arcade game where yo
 
 Check out the live demo: [Live Demo Link](https://tsakane28.github.io/AlienShooterGame)
 
-*(If you have a screenshot, place it in your repository and reference it above.)*
 
 ## Installation
 
