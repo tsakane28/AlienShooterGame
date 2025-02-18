@@ -35,5 +35,4 @@ To run the game locally:
 1. **Clone the Repository:**
 
    ```bash
-   git clone https://github.com/tsakane28/alien-shooter-game.git
-   cd alien-shooter-game
+   git clone [https://github.com/tsakane28/AlienShooterGame.git]
