@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>👾 Alien Shooter Game</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      font-family: 'Orbitron', 'Arial', sans-serif;
+      background: #000;
+      color: white;
+      overflow: hidden;
+    }
+    #gameCanvas {
+      background: linear-gradient(to bottom, #1a1a1a, #0d0d0d);
+      display: block;
+      margin: 0 auto;
+      border: 2px solid #333;
+    }
+    .overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      text-align: center;
+      padding: 20px;
+    }
+    .overlay h1 {
+      font-size: 4em;
+      margin-bottom: 20px;
+      text-shadow: 0 0 10px #00ff00;
+      color: #00ff00;
+    }
+    .overlay p {
+      font-size: 1.5em;
+      margin: 10px 0;
+    }
+    .button {
+      background: linear-gradient(45deg, #00ff00, #00cc00);
+      color: black;
+      padding: 15px 30px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.2em;
+      cursor: pointer;
+      margin-top: 30px;
+      transition: transform 0.2s, box-shadow 0.2s;
+      font-family: 'Orbitron', sans-serif;
+      text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+      box-shadow: 0 0 15px #00ff00;
+    }
+    .button:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 25px #00ff00;
+    }
+    .score {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      font-size: 1.5em;
+      z-index: 5;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: 1px solid #00ff00;
+      box-shadow: 0 0 10px #00ff00;
+    }
+    .high-score {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      font-size: 1.5em;
+      z-index: 5;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: 1px solid #ffd700;
+      box-shadow: 0 0 10px #ffd700;
+    }
+    .emoji {
+      font-size: 1.2em;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+    /* Mobile controls styling */
+    #mobileControls {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: none;
+      gap: 20px;
+      z-index: 20;
+    }
+    #mobileControls button {
+      background: rgba(0, 0, 0, 0.7);
+      border: 2px solid #00ff00;
+      color: #00ff00;
+      font-size: 1.5em;
+      padding: 15px 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px #00ff00;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="overlay" id="startScreen">
+    <h1>👾 ALIEN SHOOTER 🚀</h1>
+    <p>Defend Earth from the alien invasion!</p>
+    <button class="button" id="startButton">🚀 START MISSION</button>
+  </div>
+
+  <div class="overlay" id="gameOverScreen" style="display: none;">
+    <h1>💥 GAME OVER 💥</h1>
+    <p class="emoji" id="finalScore"></p>
+    <p class="emoji" id="highScore"></p>
+    <button class="button" id="restartButton">🔄 RESTART</button>
+  </div>
+
+  <canvas id="gameCanvas"></canvas>
+  <div class="score" id="scoreDisplay">🎯 SCORE: 0</div>
+  <div class="high-score" id="highScoreDisplay">🏆 HIGH SCORE: 0</div>
+
+  <!-- Mobile control buttons -->
+  <div id="mobileControls">
+    <button id="leftButton">◀️</button>
+    <button id="fireButton">🔥</button>
+    <button id="rightButton">▶️</button>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const startScreen = document.getElementById('startScreen');
+      const gameOverScreen = document.getElementById('gameOverScreen');
+      const startButton = document.getElementById('startButton');
+      const restartButton = document.getElementById('restartButton');
+      const scoreDisplay = document.getElementById('scoreDisplay');
+      const highScoreDisplay = document.getElementById('highScoreDisplay');
+      const finalScoreDisplay = document.getElementById('finalScore');
+      const highScoreElement = document.getElementById('highScore');
+      const mobileControls = document.getElementById('mobileControls');
+      const leftButton = document.getElementById('leftButton');
+      const rightButton = document.getElementById('rightButton');
+      const fireButton = document.getElementById('fireButton');
+
+      let gameActive = false;
+      let score = 0;
+      let highScore = localStorage.getItem('alienShooterHighScore') || 0;
+      let aliens = [];
+      let bullets = [];
+      let playerX = canvas.width / 2;
+      let alienSpawnInterval;
+
+      highScoreDisplay.textContent = `🏆 HIGH SCORE: ${highScore}`;
+
+      class Alien {
+        constructor(x, y) {
+          this.x = x;
+          this.y = y;
+          this.size = 30;
+          this.speed = 2;
+        }
+        draw() {
+          ctx.shadowColor = '#00ff00';
+          ctx.shadowBlur = 20;
+          ctx.fillStyle = '#00ff00';
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+        update() {
+          this.y += this.speed;
+        }
+      }
+
+      class Bullet {
+        constructor(x, y) {
+          this.x = x;
+          this.y = y;
+          this.width = 5;
+          this.height = 15;
+          this.speed = 7;
+        }
+        draw() {
+          ctx.shadowColor = 'red';
+          ctx.shadowBlur = 10;
+          ctx.fillStyle = 'red';
+          ctx.fillRect(this.x, this.y, this.width, this.height);
+          ctx.shadowBlur = 0;
+        }
+        update() {
+          this.y -= this.speed;
+        }
+      }
+
+      function startSpawningAliens() {
+        alienSpawnInterval = setInterval(() => {
+          const x = Math.random() * (canvas.width - 60) + 30;
+          aliens.push(new Alien(x, 0));
+        }, 1000);
+      }
+
+      function gameLoop() {
+        if (!gameActive) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          return;
+        }
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Update and draw aliens
+        for (let i = aliens.length - 1; i >= 0; i--) {
+          const alien = aliens[i];
+          alien.update();
+          alien.draw();
+          if (alien.y - alien.size > canvas.height) {
+            endGame();
+            return;
+          }
+        }
+
+        // Update and draw bullets
+        for (let i = bullets.length - 1; i >= 0; i--) {
+          const bullet = bullets[i];
+          bullet.update();
+          bullet.draw();
+          if (bullet.y + bullet.height < 0) {
+            bullets.splice(i, 1);
+            continue;
+          }
+          // Collision detection with aliens
+          for (let j = aliens.length - 1; j >= 0; j--) {
+            const alien = aliens[j];
+            const dist = Math.hypot(bullet.x - alien.x, bullet.y - alien.y);
+            if (dist < alien.size) {
+              aliens.splice(j, 1);
+              bullets.splice(i, 1);
+              score += 10;
+              scoreDisplay.textContent = `🎯 SCORE: ${score}`;
+              if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('alienShooterHighScore', highScore);
+                highScoreDisplay.textContent = `🏆 HIGH SCORE: ${highScore}`;
+                highScoreDisplay.style.animation = 'pulse 0.5s';
+                setTimeout(() => highScoreDisplay.style.animation = '', 500);
+              }
+              break;
+            }
+          }
+        }
+
+        // Clamp player position to canvas boundaries
+        playerX = Math.min(Math.max(playerX, 20), canvas.width - 20);
+
+        // Draw player (a triangle)
+        ctx.shadowColor = '#00ffff';
+        ctx.shadowBlur = 20;
+        ctx.fillStyle = '#00ffff';
+        ctx.beginPath();
+        ctx.moveTo(playerX - 20, canvas.height - 20);
+        ctx.lineTo(playerX + 20, canvas.height - 20);
+        ctx.lineTo(playerX, canvas.height - 50);
+        ctx.closePath();
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        requestAnimationFrame(gameLoop);
+      }
+
+      function endGame() {
+        gameActive = false;
+        clearInterval(alienSpawnInterval);
+        gameOverScreen.style.display = 'flex';
+        finalScoreDisplay.textContent = `YOUR SCORE: ${score} 💫`;
+        highScoreElement.textContent = `HIGH SCORE: ${highScore} 🏆`;
+      }
+
+      function startGame() {
+        if (alienSpawnInterval) clearInterval(alienSpawnInterval);
+        aliens = [];
+        bullets = [];
+        score = 0;
+        playerX = canvas.width / 2;
+        gameActive = true;
+        
+        scoreDisplay.textContent = `🎯 SCORE: ${score}`;
+        highScoreDisplay.textContent = `🏆 HIGH SCORE: ${highScore}`;
+        startScreen.style.display = 'none';
+        gameOverScreen.style.display = 'none';
+        
+        startSpawningAliens();
+        requestAnimationFrame(gameLoop);
+      }
+
+      // Desktop mouse control for movement and shooting
+      window.addEventListener('mousemove', (e) => {
+        if (gameActive) playerX = e.clientX;
+      });
+      window.addEventListener('click', (e) => {
+        if (gameActive) {
+          bullets.push(new Bullet(playerX - 2.5, canvas.height - 50));
+        }
+      });
+
+      // Mobile control: show on-screen buttons if touch is supported
+      const isMobile = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+      if (isMobile) {
+        mobileControls.style.display = 'flex';
+      }
+
+      // Mobile button event listeners
+      let leftInterval, rightInterval;
+      leftButton.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        leftInterval = setInterval(() => {
+          playerX -= 5;
+        }, 16);
+      });
+      leftButton.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        clearInterval(leftInterval);
+      });
+      rightButton.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        rightInterval = setInterval(() => {
+          playerX += 5;
+        }, 16);
+      });
+      rightButton.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        clearInterval(rightInterval);
+      });
+      fireButton.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (gameActive) {
+          bullets.push(new Bullet(playerX - 2.5, canvas.height - 50));
+        }
+      });
+
+      // Optional: Use device tilt for movement on supported mobile devices.
+      function handleOrientation(event) {
+        // event.gamma gives left/right tilt in degrees (typically -90 to 90)
+        let tilt = event.gamma || 0;
+        // Adjust sensitivity as needed (0.2 is an example factor)
+        playerX += tilt * 0.2;
+      }
+      if (isMobile && window.DeviceOrientationEvent) {
+        // For iOS 13+ devices, request permission to use DeviceOrientationEvent
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+          DeviceOrientationEvent.requestPermission()
+            .then(response => {
+              if (response === 'granted') {
+                window.addEventListener('deviceorientation', handleOrientation);
+              }
+            })
+            .catch(console.error);
+        } else {
+          window.addEventListener('deviceorientation', handleOrientation);
+        }
+      }
+
+      startButton.addEventListener('click', startGame);
+      restartButton.addEventListener('click', startGame);
+
+      window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        playerX = canvas.width / 2;
+      });
+
+      startScreen.style.display = 'flex';
+    });
+  </script>
+</body>
+</html>
