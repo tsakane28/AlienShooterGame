@@ -36,4 +36,4 @@ To run the game locally:
 
    ```bash
    git clone [https://github.com/tsakane28/AlienShooterGame.git]
-     cd alien-shooter-game
+     cd AlienShooterGame
